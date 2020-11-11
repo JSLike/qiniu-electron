@@ -1,0 +1,13 @@
+.icon-button{
+  background:none;
+  border:none;
+  color: inherit;
+  outline: none;
+}
+
+.icon-button:active{
+  background:none;
+  border-color:inherit;
+  color: inherit;
+  outline: none;
+}
