@@ -10,7 +10,7 @@ app.on('ready',()=>{
             nodeIntegration:true
         }
     })
-    const urlLocation=isDev? 'http://localhost:3000':'productionUrl'
+    const urlLocation=isDev? 'http://localhost:9000':'productionUrl'
     mainWindow.loadURL(urlLocation)
 
 })

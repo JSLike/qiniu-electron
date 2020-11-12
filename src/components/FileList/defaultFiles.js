@@ -8,7 +8,13 @@ const defaultFiles=[
   {
     id:'2',
     title:'second post',
-    body:'## this is the title',
+    body:'## second post title',
+    createdAt:1563762965704
+  },
+  {
+    id:'3',
+    title:'标签卡',
+    body:'## 标签卡 is the title',
     createdAt:1563762965704
   }
 ]

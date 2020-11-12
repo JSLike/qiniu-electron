@@ -1,13 +1,40 @@
-.icon-button{
-  background:none;
-  border:none;
-  color: inherit;
-  outline: none;
+.icon-button {
+    background: none;
+    border: none;
+    color: inherit;
+    outline: none;
 }
 
-.icon-button:active{
-  background:none;
-  border-color:inherit;
-  color: inherit;
-  outline: none;
+.icon-button:active {
+    background: none;
+    border-color: inherit;
+    color: inherit;
+    outline: none;
+}
+
+.start-page {
+    font-size: 30px;
+    height: 300px;
+    line-height: 300px;
+    color: #ccc;
+    text-align: center;
+}
+
+.left-panel {
+    min-height: 100vh;
+    position: relative;
+    padding-bottom:40px ;
+}
+
+.left-panel .bottom-btn {
+align-self: flex-end;
+position: absolute;
+    bottom: 0;
+    width: 100%;
+
+}
+
+.left-panel .no-border{
+    border-radius:0 ;
+    box-shadow: none;
 }

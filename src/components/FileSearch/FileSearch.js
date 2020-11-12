@@ -1,45 +1,39 @@
 import React, {useState, useEffect, useRef} from 'react';
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
-import { faSearch,faTimes } from '@fortawesome/free-solid-svg-icons';
+import {faSearch, faTimes} from '@fortawesome/free-solid-svg-icons';
 import PropTypes from 'prop-types';
-
+import useKeyPress from "../../hooks/useKeyPress";
 
 const FileSearch = ({title, onFileSearch}) => {
     const [inputActive, setInputActive] = useState(false);
     const [value, setValue] = useState('');
+    const enterPressed = useKeyPress('Enter')
+    const escPressed = useKeyPress('Escape')
+
     let node = useRef(null);
 
-    const closeSearch = (e) => {
-        e.preventDefault();
+    const closeSearch = () => {
         setInputActive(false);
         setValue('')
     }
 
     useEffect(() => {
-        const handleInputEvent = (event) => {
-            const {code} = event;//Escape ,Enter
-            if (code === 'Enter' && inputActive) {
-                onFileSearch(value)
-            } else if (code === 'Escape' && inputActive) {
-                closeSearch(event)
-            }
-        }
-        document.addEventListener('keyup', handleInputEvent)
-        return () => {
-            document.removeEventListener('keyup', handleInputEvent)
+        if (enterPressed && inputActive) {
+            onFileSearch(value)
+        } else if (escPressed && inputActive) {
+            closeSearch()
         }
 
     })
-    useEffect(()=>{
-        console.log('inputActive',inputActive)
-       if (node.current&&inputActive){
-           node.current.focus()
-       }
-    },[inputActive])
+    useEffect(() => {
+        if (node.current && inputActive) {
+            node.current.focus()
+        }
+    }, [inputActive])
 
     return (
-        <div className="alert alert-primary d-flex justify-content-between align-items-center"
-        style={{height:'50px'}}
+        <div className="alert alert-primary d-flex justify-content-between align-items-center mb-0"
+             style={{height: '50px'}}
         >
             {
                 !inputActive &&
@@ -88,12 +82,12 @@ const FileSearch = ({title, onFileSearch}) => {
 
 }
 
-FileSearch.propTypes={
-    title:PropTypes.string,
-    onFileSearch:PropTypes.func.isRequired
+FileSearch.propTypes = {
+    title: PropTypes.string,
+    onFileSearch: PropTypes.func.isRequired
 }
-FileSearch.defaultProps={
-    title:'我的云文档'
+FileSearch.defaultProps = {
+    title: '我的云文档'
 }
 
 
