@@ -12,6 +12,12 @@ const FileSearch = ({title, onFileSearch}) => {
 
     let node = useRef(null);
 
+//————————————————————————
+    let num = useRef(0)
+    num.current++
+    console.log('FileSearch-num-end,',num.current)
+//————————————————————————
+
     const closeSearch = () => {
         setInputActive(false);
         setValue('')
