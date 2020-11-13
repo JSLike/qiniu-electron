@@ -15,6 +15,7 @@ const FileSearch = ({title, onFileSearch}) => {
     const closeSearch = () => {
         setInputActive(false);
         setValue('')
+        onFileSearch('')
     }
 
     useEffect(() => {
@@ -24,7 +25,7 @@ const FileSearch = ({title, onFileSearch}) => {
             closeSearch()
         }
 
-    })
+    },[enterPressed,escPressed])
     useEffect(() => {
         if (node.current && inputActive) {
             node.current.focus()

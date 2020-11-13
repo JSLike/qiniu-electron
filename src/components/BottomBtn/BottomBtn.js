@@ -17,7 +17,6 @@ const BottomBtn = ({text,colorClass,icon,onBtnClick}) => {
             />
             {text}
         </button>
-
     )
 }
 BottomBtn.propTypes={

@@ -15,32 +15,44 @@ const FileList = ({files, onFileClick, onSaveEdit, onFileDelete}) => {
     const escPressed = useKeyPress('Escape')
     const inputNode = useRef(null)
 
-
     const onEditList = (file) => {
         setValue(file.title)
         setEditState(file.id)
     }
-    const onCloseSearch = () => {
+    const onCloseSearch = (editItem) => {
+        //有isNEW属性，则删除
+        if (editItem.isNew){
+            onFileDelete(editItem.id)
+        }
         setEditState(false)
+        setValue('')
     }
     useEffect(() => {
+        const editItem=files.find(file=>file.id===editState)
 
-        if (editState) {
-            if (enterPressed){
-                //确认修改逻辑
-                console.log(inputNode.current.value)
-                onSaveEdit(editState,value)
+        if (editState && enterPressed &&value.trim()) {
+            //确认修改逻辑
+            onSaveEdit(editItem.id, value,editItem.isNew)
+            onCloseSearch(editItem) //enter，esc hooks过滤了其他按键的可能性，所以可以直接关闭
+        } else if (editState && escPressed) {
+            onCloseSearch(editItem)
+        }
 
-                onCloseSearch() //enter，esc hooks过滤了其他按键的可能性，所以可以直接关闭
-            }else if (escPressed){
-                onCloseSearch()
-            }
+    }, [enterPressed, escPressed])
 
+
+    useEffect(() => {
+        const newFile = files.find(file => {
+
+            return file.isNew
+        })
+        if (newFile) {
+            setEditState(newFile.id);
+            setValue(newFile.title)
         }
 
 
-    }, [enterPressed, escPressed, editState])
-
+    }, [files])
 
     return (
 
@@ -50,17 +62,19 @@ const FileList = ({files, onFileClick, onSaveEdit, onFileDelete}) => {
                     return (
                         <li className='list-group-item row bg-light d-flex align-items-center file-item mx-0'
                             key={file.id}
+                            id={file.id}
                         >
-                            {file.id === editState ?
+                            {(file.id === editState || file.isNew) ?
                                 <input type="text" className='form-control col-8'
                                        value={value}
+
                                        onChange={(e) => setValue(e.target.value)}
                                        ref={inputNode}
+                                       placeholder='请输入文件名称'
                                 />
                                 :
                                 <div className='col-8'>
                                     <FontAwesomeIcon
-
                                         title={'markdown'}
                                         icon={faMarkdown}
                                     />
@@ -74,15 +88,12 @@ const FileList = ({files, onFileClick, onSaveEdit, onFileDelete}) => {
                                     >
                                         {file.title}
                                     </span>
-
-
                                 </div>
                             }
 
 
                             <div className='col-4 pr-0 d-flex justify-content-end'>
-                                {!file.id === editState ? (
-
+                                {(file.id !== editState && !file.isNew) ? (
                                     <>
                                         <button
                                             type='button'
@@ -116,7 +127,9 @@ const FileList = ({files, onFileClick, onSaveEdit, onFileDelete}) => {
                                         <button
                                             type="button"
                                             className="icon-button"
-                                            onClick={onCloseSearch}
+                                            onClick={()=>{
+                                                onCloseSearch(file)
+                                            }}
                                         >
                                             <FontAwesomeIcon
                                                 title="关闭"

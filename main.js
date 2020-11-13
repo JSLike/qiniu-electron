@@ -7,8 +7,10 @@ app.on('ready',()=>{
         width:1200,
         height:800,
         webPreferences:{
-            nodeIntegration:true
-        }
+            nodeIntegration:true,
+            enableRemoteModule:true
+        },
+
     })
     const urlLocation=isDev? 'http://localhost:9000':'productionUrl'
     mainWindow.loadURL(urlLocation)
