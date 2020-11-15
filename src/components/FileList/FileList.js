@@ -32,7 +32,7 @@ const FileList = ({files, onFileClick, onSaveEdit, onFileDelete}) => {
 
         if (editState && enterPressed &&value.trim()) {
             //确认修改逻辑
-            onSaveEdit(editItem.id, value,editItem.isNew)
+            onSaveEdit(editItem.id, value)
             onCloseSearch(editItem) //enter，esc hooks过滤了其他按键的可能性，所以可以直接关闭
         } else if (editState && escPressed) {
             onCloseSearch(editItem)

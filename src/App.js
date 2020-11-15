@@ -6,6 +6,7 @@ import {faPlus, faFileImport} from '@fortawesome/free-solid-svg-icons';
 
 import FileSearch from "./components/FileSearch/FileSearch";
 import FileList from "./components/FileList/FileList";
+
 import defaultFiles from "./utils/defaultFiles"
 import BottomBtn from "./components/BottomBtn/BottomBtn";
 import TableList from "./components/TableList/TableList";
@@ -15,10 +16,8 @@ import "easymde/dist/easymde.min.css";
 import {flattenArr, objToArr} from './utils/helper'
 import fileHelper from "./utils/fileHelpers";
 
-
-const {path} = window.require('fs');
 const {remote} = window.require('electron');
-
+const {join} =window.require('electron');
 
 function App() {
 
@@ -66,19 +65,17 @@ function App() {
         //  修改 || 如果是新增，添加文件
         if (newFiles[contrastID]['isNew']) {
             delete newFiles[contrastID]['isNew']
-            // fileHelper.readFile(path.join(__dirname,'main.js')).then(res=>{
-            //     console.log('read file success',res)
-            // })
-            // fileHelper.whiteFile(getFilePath(value), newFiles[contrastID].body).then(() => {
-            //     console.log('新增文件成功')
-            //     setFiles(newFiles)
-            // })
+
+            fileHelper.whiteFile(getFilePath(value), newFiles[contrastID].body).then(() => {
+                console.log('新增文件成功')
+                setFiles(newFiles)
+            })
         }else if(type==='body'){
 
         }else{
-             // fileHelper.renameFile(getFilePath(newFiles[contrastID].title), getFilePath(value)).then(() => {
-             //        setFiles(newFiles)
-             //    })
+            fileHelper.renameFile(getFilePath(newFiles[contrastID].title), getFilePath(value)).then(() => {
+                setFiles(newFiles)
+            })
         }
         newFiles[contrastID][type] = value
 
@@ -94,24 +91,36 @@ function App() {
 
     const fileChange = (value) => {
         //更新未保存列表
+        let newFiles={
+            ...files,
+            [activeFileID]:{
+                ...files[activeFileID],
+                body:value
+            }
+        }
+        console.log(newFiles)
+        setFiles(newFiles)
         setUnsavedFileIDs([...unsavedFileIDs, activeFileID])
-
-        //更新文件列表数据
-        _changeFiles('body', activeFileID, value)
 
     }
 
     const fileDelete = (fileID) => {
-        console.log(fileID, activeFileID)
-        delete files[fileID]
-        //关闭已经打开的tab
-        if (openedFileIDs.includes(fileID)) {
-            tabClose(fileID)
-        }
-        setFiles(files)
+
+        console.log('fileDelete',files,files[fileID])
+        fileHelper.deleteFile(getFilePath(files[fileID].title)).then(()=>{
+            let newFile={...files}
+            delete newFile[fileID]
+            //关闭已经打开的tab
+            if (openedFileIDs.includes(fileID)) {
+                tabClose(fileID)
+            }
+            setFiles(newFile)
+
+        })
 
     }
-    const updateFileName = (fileID, value, isNew) => {
+    //修改文件名称
+    const updateFileName = (fileID, value) => {
         _changeFiles('title', fileID, value)
     }
     // onSaveCurrentFile
@@ -132,19 +141,18 @@ function App() {
                 isNew: true
             }
         }
+        console.log('新增成功',newFiles)
 
         setFiles(newFiles)
 
     }
 
     const onSaveCurrentFile=()=>{
-
-        // fileHelper.whiteFile(getFilePath(activeFile.title),activeFile.body).then(() => {
-        //    // 完成保存，删除unsavedID
-        //
-        //     let newUnsavedFileIDs=unsavedFileIDs.filter(file=>file!==activeFile.id)
-        //     setUnsavedFileIDs(newUnsavedFileIDs)
-        // })
+        fileHelper.whiteFile(getFilePath(activeFile.title),activeFile.body).then(() => {
+           // 完成保存，删除unsavedID
+            let newUnsavedFileIDs=unsavedFileIDs.filter(file=>file!==activeFile.id)
+            setUnsavedFileIDs(newUnsavedFileIDs)
+        })
     }
     return (
         <div className="App container-fluid px-0" style={
