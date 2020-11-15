@@ -1,32 +1,39 @@
 import React, {useState, useEffect} from "react";
 import 'bootstrap/dist/css/bootstrap.min.css'
-
+import {v4} from 'uuid'
 import './App.css';
 import {faPlus, faFileImport} from '@fortawesome/free-solid-svg-icons';
 
 import FileSearch from "./components/FileSearch/FileSearch";
 import FileList from "./components/FileList/FileList";
-import defaultFiles from "./components/FileList/defaultFiles"
+import defaultFiles from "./utils/defaultFiles"
 import BottomBtn from "./components/BottomBtn/BottomBtn";
 import TableList from "./components/TableList/TableList";
 import SimpleMDE from "react-simplemde-editor";
 import "easymde/dist/easymde.min.css";
 
+import {flattenArr, objToArr} from './utils/helper'
+import fileHelper from "./utils/fileHelpers";
+
+
+const {path} = window.require('fs');
+const {remote} = window.require('electron');
+
+
 function App() {
 
-    const [files, setFiles] = useState(defaultFiles);
+    const [files, setFiles] = useState(flattenArr(defaultFiles));
     const [activeFileID, setActiveFileID] = useState('');
     const [openedFileIDs, setOpenedFileIDs] = useState([]);
     const [unsavedFileIDs, setUnsavedFileIDs] = useState([]);
+    const [searchFiles, setSearchFiles] = useState([])
+    const filesArr = objToArr(files)
+    const savedLocation = remote.app.getPath('documents');
+    const fileListArray = searchFiles.length ? searchFiles : filesArr;
+    let activeFile = files[activeFileID]
+
     let opendFiles = openedFileIDs.map(openId => {
-        return files.find((file) => {
-            return openId === file.id
-        })
-
-    })
-
-    let activeFile = files.find(file => {
-        return file.id === activeFileID
+        return files[openId]
     })
 
     const filesItemClick = (fileID) => {
@@ -49,74 +56,117 @@ function App() {
             setUnsavedFileIDs(newUnsavedFileIDs)
         }
     }
+
+    const getFilePath = (name) => {
+        return savedLocation + '/' + name + '.md'
+    }
+    const _changeFiles = (type, contrastID, value) => {
+        const newFiles = Object.assign({}, files)
+
+        //  修改 || 如果是新增，添加文件
+        if (newFiles[contrastID]['isNew']) {
+            delete newFiles[contrastID]['isNew']
+            // fileHelper.readFile(path.join(__dirname,'main.js')).then(res=>{
+            //     console.log('read file success',res)
+            // })
+            // fileHelper.whiteFile(getFilePath(value), newFiles[contrastID].body).then(() => {
+            //     console.log('新增文件成功')
+            //     setFiles(newFiles)
+            // })
+        }else if(type==='body'){
+
+        }else{
+             // fileHelper.renameFile(getFilePath(newFiles[contrastID].title), getFilePath(value)).then(() => {
+             //        setFiles(newFiles)
+             //    })
+        }
+        newFiles[contrastID][type] = value
+
+
+
+    }
+    //搜索列表
+    const fileSearch = (keyword) => {
+        //filter数组
+        const newFiles = filesArr.filter(file => file.title.includes(keyword))
+        setSearchFiles(newFiles)
+    }
+
     const fileChange = (value) => {
         //更新未保存列表
         setUnsavedFileIDs([...unsavedFileIDs, activeFileID])
 
         //更新文件列表数据
-        const newFiles = files.map(file => {
-            if (file.id === activeFileID) {
-                file.body = value
-            }
-            return file
-        })
-        setFiles(newFiles)
-
+        _changeFiles('body', activeFileID, value)
 
     }
 
     const fileDelete = (fileID) => {
         console.log(fileID, activeFileID)
-        let newFiles = files.filter(item => item.id !== fileID);
+        delete files[fileID]
         //关闭已经打开的tab
         if (openedFileIDs.includes(fileID)) {
             tabClose(fileID)
         }
-        setFiles(newFiles)
+        setFiles(files)
 
     }
-    const saveEdit = (fileID, value) => {
+    const updateFileName = (fileID, value, isNew) => {
+        _changeFiles('title', fileID, value)
+    }
+    // onSaveCurrentFile
+    //添加文件
+    const addNewFile = () => {
+        if (filesArr.find(file => file.isNew)) {
+            return
+        }
 
-        let newFiles=files.map(file=>{
-            if (file.id===fileID){
-                file.title=value
+        let key = v4()
+        const newFiles = {
+            ...files,
+            [key]: {
+                id: key,
+                title: '',
+                body: '请输入markdown',
+                createdAt: new Date().getTime(),
+                isNew: true
             }
-            return file
-        })
+        }
 
-        console.log(newFiles)
         setFiles(newFiles)
 
     }
 
-    const updateName = (fileID) => {
+    const onSaveCurrentFile=()=>{
 
+        // fileHelper.whiteFile(getFilePath(activeFile.title),activeFile.body).then(() => {
+        //    // 完成保存，删除unsavedID
+        //
+        //     let newUnsavedFileIDs=unsavedFileIDs.filter(file=>file!==activeFile.id)
+        //     setUnsavedFileIDs(newUnsavedFileIDs)
+        // })
     }
-
-    useEffect(() => {
-
-    },)
-
-
     return (
-        <div className="App container-fluid px-0" style={{'minWidth': '1200px'}}>
+        <div className="App container-fluid px-0" style={
+            {'minWidth': '1200px'}
+        }>
             <div className="row no-gutters">
                 <div className="col-3 left-panel ">
                     <FileSearch
                         title={'我的云文档'}
-                        onFileSearch={(value) => {
-                        }}
+                        onFileSearch={fileSearch}
                     />
                     <FileList
-                        files={files}
+                        files={fileListArray}
                         onFileClick={filesItemClick}
-                        onSaveEdit={saveEdit}
+                        onSaveEdit={updateFileName}
                         onFileDelete={fileDelete}
 
                     />
                     <div className="row no-gutters bottom-btn">
                         <div className="col">
                             <BottomBtn
+                                onBtnClick={addNewFile}
                                 text='新建'
                                 colorClass={'btn-primary'}
                                 icon={faPlus}
@@ -160,6 +210,13 @@ function App() {
                                     minHeight: '515px'
                                 }
                             }
+                        />
+
+                        <BottomBtn
+                            text='保存'
+                            colorClass='btn-warning'
+                            icon={faFileImport}
+                            onBtnClick={onSaveCurrentFile}
                         />
                     </>
                     }
