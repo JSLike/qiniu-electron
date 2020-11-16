@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react";
+import React, {useState} from "react";
 import 'bootstrap/dist/css/bootstrap.min.css'
 import {v4} from 'uuid'
 import './App.css';
@@ -7,37 +7,83 @@ import {faPlus, faFileImport} from '@fortawesome/free-solid-svg-icons';
 import FileSearch from "./components/FileSearch/FileSearch";
 import FileList from "./components/FileList/FileList";
 
-import defaultFiles from "./utils/defaultFiles"
 import BottomBtn from "./components/BottomBtn/BottomBtn";
 import TableList from "./components/TableList/TableList";
 import SimpleMDE from "react-simplemde-editor";
 import "easymde/dist/easymde.min.css";
 
-import {flattenArr, objToArr} from './utils/helper'
+import {flattenArr, objToArr, fileStoreObj} from './utils/helper'
 import fileHelper from "./utils/fileHelpers";
 
 const {remote} = window.require('electron');
-const {join} =window.require('electron');
-
+const path = window.require('path')
+const Store = window.require('electron-store');
+const fileStore = new Store({'name': 'File Data'})
+const savedLocation = remote.app.getPath('documents');
+console.log('files---',fileStore.get('files'),remote.app.getPath('userData'))
 function App() {
 
-    const [files, setFiles] = useState(flattenArr(defaultFiles));
+    const [files, setFiles] = useState(fileStore.get('files') || {});
     const [activeFileID, setActiveFileID] = useState('');
     const [openedFileIDs, setOpenedFileIDs] = useState([]);
     const [unsavedFileIDs, setUnsavedFileIDs] = useState([]);
     const [searchFiles, setSearchFiles] = useState([])
     const filesArr = objToArr(files)
-    const savedLocation = remote.app.getPath('documents');
     const fileListArray = searchFiles.length ? searchFiles : filesArr;
     let activeFile = files[activeFileID]
+    console.log('data-path----', savedLocation, remote.app.getPath('userData'))
 
+    const saveFilesToStore = (files) => {
+        let fileObj = fileStoreObj(files)
+        fileStore.set('files', fileObj)
+    }
     let opendFiles = openedFileIDs.map(openId => {
         return files[openId]
     })
 
+    //delete file
+    const fileDelete = (fileID) => {
+        // let newFile = {...files}
+        const {[fileID]: value, ...afterDelete} = files;//es6展开法
+
+        if (files[fileID].isNew) {
+            // delete newFile[fileID]
+            setFiles(afterDelete)
+        } else {
+            fileHelper.deleteFile(files[fileID].path).then(() => {
+                // delete newFile[fileID]
+                saveFilesToStore(afterDelete)
+                //关闭已经打开的tab
+                if (openedFileIDs.includes(fileID)) {
+                    tabClose(fileID)
+                }
+                setFiles(afterDelete)
+            })
+        }
+
+    }
+
+    //点击打开文件的时候读取内容
+
     const filesItemClick = (fileID) => {
+        let newFile = {...files[fileID]};
+
         setActiveFileID(fileID)
         !openedFileIDs.includes(fileID) && setOpenedFileIDs([...openedFileIDs, fileID])
+
+        if (!newFile.isLoaded) {
+
+            fileHelper.readFile(newFile.path).then((data) => {
+                newFile.body = data;
+                newFile.isLoaded = true;
+                setFiles({...files, [newFile.id]: newFile})
+                console.log('文件读取成功')
+            }).catch(err => {
+                console.error('文件读取失败', err)
+            })
+        }
+
+
     }
     const tabClick = (fileID) => {
         setActiveFileID(fileID)
@@ -56,30 +102,34 @@ function App() {
         }
     }
 
-    const getFilePath = (name) => {
-        return savedLocation + '/' + name + '.md'
+    const getFilePath = (name,filePath) => {
+        if (!filePath){
+            return path.join(savedLocation, name + '.md')
+        }else{
+            return path.join(path.dirname(filePath),name + '.md')
+        }
     }
     const _changeFiles = (type, contrastID, value) => {
         const newFiles = Object.assign({}, files)
+        let currentFiles=newFiles[contrastID]
+        let isNew=currentFiles['isNew']
+        let newPath=isNew ? getFilePath(value) : getFilePath(value,currentFiles.path);
+        currentFiles.path=newPath
+        console.warn('newPath---------',newPath)
+        let callback=() => {
+            currentFiles[type] = value
+            setFiles(newFiles)
+            saveFilesToStore(newFiles)
+        }
 
         //  修改 || 如果是新增，添加文件
-        if (newFiles[contrastID]['isNew']) {
-            delete newFiles[contrastID]['isNew']
-
-            fileHelper.whiteFile(getFilePath(value), newFiles[contrastID].body).then(() => {
-                console.log('新增文件成功')
-                setFiles(newFiles)
-            })
-        }else if(type==='body'){
-
-        }else{
-            fileHelper.renameFile(getFilePath(newFiles[contrastID].title), getFilePath(value)).then(() => {
-                setFiles(newFiles)
-            })
+        if (isNew) {
+            delete currentFiles['isNew']
+            fileHelper.writeFile(newPath,currentFiles.body).then(callback)
+        } else {
+            const oldPath = getFilePath(currentFiles.title,currentFiles.path);
+            fileHelper.renameFile(oldPath, newPath).then(callback)
         }
-        newFiles[contrastID][type] = value
-
-
 
     }
     //搜索列表
@@ -91,34 +141,19 @@ function App() {
 
     const fileChange = (value) => {
         //更新未保存列表
-        let newFiles={
+        let newFiles = {
             ...files,
-            [activeFileID]:{
+            [activeFileID]: {
                 ...files[activeFileID],
-                body:value
+                body: value
             }
         }
-        console.log(newFiles)
         setFiles(newFiles)
         setUnsavedFileIDs([...unsavedFileIDs, activeFileID])
 
     }
 
-    const fileDelete = (fileID) => {
 
-        console.log('fileDelete',files,files[fileID])
-        fileHelper.deleteFile(getFilePath(files[fileID].title)).then(()=>{
-            let newFile={...files}
-            delete newFile[fileID]
-            //关闭已经打开的tab
-            if (openedFileIDs.includes(fileID)) {
-                tabClose(fileID)
-            }
-            setFiles(newFile)
-
-        })
-
-    }
     //修改文件名称
     const updateFileName = (fileID, value) => {
         _changeFiles('title', fileID, value)
@@ -141,19 +176,71 @@ function App() {
                 isNew: true
             }
         }
-        console.log('新增成功',newFiles)
 
         setFiles(newFiles)
 
     }
 
-    const onSaveCurrentFile=()=>{
-        fileHelper.whiteFile(getFilePath(activeFile.title),activeFile.body).then(() => {
-           // 完成保存，删除unsavedID
-            let newUnsavedFileIDs=unsavedFileIDs.filter(file=>file!==activeFile.id)
+    const onSaveCurrentFile = () => {
+        fileHelper.writeFile(activeFile.path, activeFile.body).then(() => {
+            // 完成保存，删除unsavedID
+            let newUnsavedFileIDs = unsavedFileIDs.filter(file => file !== activeFile.id)
             setUnsavedFileIDs(newUnsavedFileIDs)
         })
     }
+
+
+    //import files
+    const importFiles = () => {
+        remote.dialog.showOpenDialog({
+            title: '选择文件',
+            properties: ['openFile', 'multiSelections'],
+            defaultPath: savedLocation,
+            filters: [
+                {name: 'Markdown Files', extensions: ['md']},
+            ]
+        }).then(res => {
+            let {canceled, filePaths} = res;
+            if (!canceled) {
+                //用户确认
+                //1.过滤掉已经添加过的文件 ,并抛出提示
+
+                const newFilePaths = filePaths.filter(filePath => {
+                    const hasArr = Object.values(files).find(file => {
+                        return file.path === filePath
+                    })
+                    return !hasArr
+                })
+                if (!newFilePaths || !newFilePaths.length) {
+                    return
+                }
+                //2.转化成file格式{id,title,body,createdAt}
+
+                const importFilesArr = newFilePaths.map(filePath => {
+                    return {
+                        id: v4(),
+                        title: path.basename(filePath, path.extname(filePath)),
+                        path: filePath,
+                        createdAt: new Date().getTime()
+                    }
+                })
+
+                //3.更新files
+                const newFiles = {...files, ...flattenArr(importFilesArr)}
+                setFiles(newFiles)
+                saveFilesToStore(newFiles)
+
+                remote.dialog.showMessageBox({
+                    type:'info',
+                    title:'导入文件',
+                    message:`成功导入了${importFilesArr.length}个文件`
+                })
+            }
+        }).catch(err => {
+            console.log('选择文件失败', err)
+        })
+    }
+
     return (
         <div className="App container-fluid px-0" style={
             {'minWidth': '1200px'}
@@ -185,6 +272,7 @@ function App() {
                                 text='导入'
                                 colorClass='btn-success'
                                 icon={faFileImport}
+                                onBtnClick={importFiles}
                             />
                         </div>
                     </div>

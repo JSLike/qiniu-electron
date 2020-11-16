@@ -2,9 +2,9 @@ const fs = window.require('fs').promises;
 
 const fileHelper = {
     readFile: (path) => {
-        return fs.readFile(path, {encoding: 'utf8'})
+        return fs.readFile(path, 'utf8')
     },
-    whiteFile: (path, content) => {
+    writeFile: (path, content) => {
         return fs.writeFile(path, content, {encoding: 'utf8'})
     },
     renameFile:(path,newPath)=>{

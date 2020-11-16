@@ -8,7 +8,7 @@ app.on('ready',()=>{
         height:800,
         webPreferences:{
             nodeIntegration:true,
-            enableRemoteModule:true
+            enableRemoteModule:true,
         },
 
     })
@@ -16,3 +16,4 @@ app.on('ready',()=>{
     mainWindow.loadURL(urlLocation)
 
 })
+
