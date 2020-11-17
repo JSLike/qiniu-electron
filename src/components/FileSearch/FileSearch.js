@@ -3,6 +3,9 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faSearch, faTimes} from '@fortawesome/free-solid-svg-icons';
 import PropTypes from 'prop-types';
 import useKeyPress from "../../hooks/useKeyPress";
+import useIpcRenderer from "../../hooks/useIpcRenderer";
+
+
 
 const FileSearch = ({title, onFileSearch}) => {
     const [inputActive, setInputActive] = useState(false);
@@ -11,6 +14,11 @@ const FileSearch = ({title, onFileSearch}) => {
     const escPressed = useKeyPress('Escape')
 
     let node = useRef(null);
+    //应用菜单事件
+    let objListener = {
+        'search-file': ()=>{setInputActive(true)},
+    }
+    useIpcRenderer(objListener)
 
     const closeSearch = () => {
         setInputActive(false);

@@ -7,7 +7,6 @@ const {Menu, MenuItem} = remote
 const useContextMenu = (itemArr, targetSelector,deps) => {
     let clickedElement = useRef(null);
     useEffect(() => {
-        console.log('gengxin ')
         const menu = new Menu()
         itemArr.forEach(item => {
             menu.append(new MenuItem(item))

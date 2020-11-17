@@ -14,13 +14,16 @@ import "easymde/dist/easymde.min.css";
 
 import {flattenArr, objToArr, fileStoreObj} from './utils/helper'
 import fileHelper from "./utils/fileHelpers";
+import useIpcRenderer from './hooks/useIpcRenderer';
 
-const {remote} = window.require('electron');
+const {remote, ipcRenderer} = window.require('electron');
 const path = window.require('path')
 const Store = window.require('electron-store');
 const fileStore = new Store({'name': 'File Data'})
-const savedLocation = remote.app.getPath('documents');
-console.log('files---',fileStore.get('files'),remote.app.getPath('userData'))
+const settingsStore=new Store({name:'Settings'})
+const savedLocation =settingsStore.get('savedFileLocation')|| remote.app.getPath('documents');
+console.warn(savedLocation)
+// console.log('files---',fileStore.get('files'),remote.app.getPath('userData'))
 function App() {
 
     const [files, setFiles] = useState(fileStore.get('files') || {});
@@ -62,28 +65,36 @@ function App() {
         }
 
     }
+    //更新本地文件内容并删除为保存            //初次加载读取不到问题
+    const onSaveCurrentFile = () => {
+        if (!activeFile || !activeFile.path){
+            return
+        }
+        fileHelper.writeFile(activeFile.path, activeFile.body).then(() => {
+            // 完成保存，删除unsavedID
+            let newUnsavedFileIDs = unsavedFileIDs.filter(fileId => {
+                return fileId !== activeFile.id
+            })
+            setUnsavedFileIDs(newUnsavedFileIDs)
+        })
+    }
+
 
     //点击打开文件的时候读取内容
-
     const filesItemClick = (fileID) => {
         let newFile = {...files[fileID]};
-
         setActiveFileID(fileID)
         !openedFileIDs.includes(fileID) && setOpenedFileIDs([...openedFileIDs, fileID])
-
         if (!newFile.isLoaded) {
-
             fileHelper.readFile(newFile.path).then((data) => {
                 newFile.body = data;
                 newFile.isLoaded = true;
                 setFiles({...files, [newFile.id]: newFile})
-                console.log('文件读取成功')
+                setUnsavedFileIDs(unsavedFileIDs.filter(id => id !== fileID))
             }).catch(err => {
                 console.error('文件读取失败', err)
             })
         }
-
-
     }
     const tabClick = (fileID) => {
         setActiveFileID(fileID)
@@ -102,21 +113,20 @@ function App() {
         }
     }
 
-    const getFilePath = (name,filePath) => {
-        if (!filePath){
+    const getFilePath = (name, filePath) => {
+        if (!filePath) {
             return path.join(savedLocation, name + '.md')
-        }else{
-            return path.join(path.dirname(filePath),name + '.md')
+        } else {
+            return path.join(path.dirname(filePath), name + '.md')
         }
     }
     const _changeFiles = (type, contrastID, value) => {
         const newFiles = Object.assign({}, files)
-        let currentFiles=newFiles[contrastID]
-        let isNew=currentFiles['isNew']
-        let newPath=isNew ? getFilePath(value) : getFilePath(value,currentFiles.path);
-        currentFiles.path=newPath
-        console.warn('newPath---------',newPath)
-        let callback=() => {
+        let currentFiles = newFiles[contrastID]
+        let isNew = currentFiles['isNew']
+        let newPath = isNew ? getFilePath(value) : getFilePath(value, currentFiles.path);
+        currentFiles.path = newPath
+        let callback = () => {
             currentFiles[type] = value
             setFiles(newFiles)
             saveFilesToStore(newFiles)
@@ -125,9 +135,9 @@ function App() {
         //  修改 || 如果是新增，添加文件
         if (isNew) {
             delete currentFiles['isNew']
-            fileHelper.writeFile(newPath,currentFiles.body).then(callback)
+            fileHelper.writeFile(newPath, currentFiles.body).then(callback)
         } else {
-            const oldPath = getFilePath(currentFiles.title,currentFiles.path);
+            const oldPath = getFilePath(currentFiles.title, currentFiles.path);
             fileHelper.renameFile(oldPath, newPath).then(callback)
         }
 
@@ -139,17 +149,21 @@ function App() {
         setSearchFiles(newFiles)
     }
 
-    const fileChange = (value) => {
-        //更新未保存列表
-        let newFiles = {
-            ...files,
-            [activeFileID]: {
-                ...files[activeFileID],
-                body: value
+    const fileChange = (activeFileID, value) => {
+        //更新未保存列表--解析文件的时候触发，以至于处于为保存状态
+        if (value !== files[activeFileID].body) {
+            let newFiles = {
+                ...files,
+                [activeFileID]: {
+                    ...files[activeFileID],
+                    body: value
+                }
+            }
+            setFiles(newFiles)
+            if (!unsavedFileIDs.includes(activeFileID) && files[activeFileID].isLoaded) {
+                setUnsavedFileIDs([...unsavedFileIDs, activeFileID])
             }
         }
-        setFiles(newFiles)
-        setUnsavedFileIDs([...unsavedFileIDs, activeFileID])
 
     }
 
@@ -158,7 +172,6 @@ function App() {
     const updateFileName = (fileID, value) => {
         _changeFiles('title', fileID, value)
     }
-    // onSaveCurrentFile
     //添加文件
     const addNewFile = () => {
         if (filesArr.find(file => file.isNew)) {
@@ -179,14 +192,6 @@ function App() {
 
         setFiles(newFiles)
 
-    }
-
-    const onSaveCurrentFile = () => {
-        fileHelper.writeFile(activeFile.path, activeFile.body).then(() => {
-            // 完成保存，删除unsavedID
-            let newUnsavedFileIDs = unsavedFileIDs.filter(file => file !== activeFile.id)
-            setUnsavedFileIDs(newUnsavedFileIDs)
-        })
     }
 
 
@@ -231,15 +236,26 @@ function App() {
                 saveFilesToStore(newFiles)
 
                 remote.dialog.showMessageBox({
-                    type:'info',
-                    title:'导入文件',
-                    message:`成功导入了${importFilesArr.length}个文件`
+                    type: 'info',
+                    title: '导入文件',
+                    message: `成功导入了${importFilesArr.length}个文件`
                 })
             }
         }).catch(err => {
             console.log('选择文件失败', err)
         })
     }
+
+    //应用菜单事件
+    let objListener = {
+        'create-new-file': addNewFile,
+        'save-edit-file': onSaveCurrentFile,
+        'search-file': fileSearch,
+        'import-file': importFiles,
+
+    }
+    useIpcRenderer(objListener)
+
 
     return (
         <div className="App container-fluid px-0" style={
@@ -297,22 +313,15 @@ function App() {
                         />
                         <SimpleMDE
                             key={activeFileID}
-                            onChange={(value) => {
-                                fileChange(value)
-                            }}
                             value={activeFile && activeFile.body}
+                            onChange={(value) => {
+                                fileChange(activeFileID, value)
+                            }}
                             options={
                                 {
                                     minHeight: '515px'
                                 }
                             }
-                        />
-
-                        <BottomBtn
-                            text='保存'
-                            colorClass='btn-warning'
-                            icon={faFileImport}
-                            onBtnClick={onSaveCurrentFile}
                         />
                     </>
                     }

@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useRef} from 'react';
 import PropTypes from 'prop-types'
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
-import {faEdit, faTimes, faTrash} from '@fortawesome/free-solid-svg-icons';
+import {faTimes} from '@fortawesome/free-solid-svg-icons';
 import {faMarkdown} from '@fortawesome/free-brands-svg-icons';
 import useKeyPress from "../../hooks/useKeyPress";
 
