@@ -6,13 +6,13 @@ import {faPlus, faFileImport} from '@fortawesome/free-solid-svg-icons';
 
 import FileSearch from "./components/FileSearch/FileSearch";
 import FileList from "./components/FileList/FileList";
-
 import BottomBtn from "./components/BottomBtn/BottomBtn";
 import TableList from "./components/TableList/TableList";
+import Loading from "./components/Loading/Loading";
 import SimpleMDE from "react-simplemde-editor";
 import "easymde/dist/easymde.min.css";
 
-import {flattenArr, objToArr, fileStoreObj} from './utils/helper'
+import {flattenArr, objToArr, fileStoreObj,timeStampToString} from './utils/helper'
 import fileHelper from "./utils/fileHelpers";
 import useIpcRenderer from './hooks/useIpcRenderer';
 
@@ -20,11 +20,16 @@ const {remote, ipcRenderer} = window.require('electron');
 const path = window.require('path')
 const Store = window.require('electron-store');
 const fileStore = new Store({'name': 'File Data'})
-const settingsStore=new Store({name:'Settings'})
-const savedLocation =settingsStore.get('savedFileLocation')|| remote.app.getPath('documents');
+const settingsStore = new Store({name: 'Settings'})
+const savedLocation = settingsStore.get('savedFileLocation') || remote.app.getPath('documents');
 console.warn(savedLocation)
+
+const getAutoSync = () => ['accessKey', 'secretKey', 'bucketName', 'enableAutoSync'].every(key => !!settingsStore.get(key))
+
+
 // console.log('files---',fileStore.get('files'),remote.app.getPath('userData'))
 function App() {
+    const [isLoading,setLoading]=useState(false);
 
     const [files, setFiles] = useState(fileStore.get('files') || {});
     const [activeFileID, setActiveFileID] = useState('');
@@ -65,9 +70,10 @@ function App() {
         }
 
     }
-    //更新本地文件内容并删除为保存            //初次加载读取不到问题
-    const onSaveCurrentFile = () => {
-        if (!activeFile || !activeFile.path){
+    //更新本地文件内容并删除为保存
+    const saveCurrentFile = () => {
+
+        if (!activeFile || !activeFile.path) {
             return
         }
         fileHelper.writeFile(activeFile.path, activeFile.body).then(() => {
@@ -76,24 +82,33 @@ function App() {
                 return fileId !== activeFile.id
             })
             setUnsavedFileIDs(newUnsavedFileIDs)
+            if (getAutoSync()) {
+                ipcRenderer.send('upload-file', {key: `${activeFile.title}.md`, path: activeFile.path})
+            }
         })
     }
-
 
     //点击打开文件的时候读取内容
     const filesItemClick = (fileID) => {
         let newFile = {...files[fileID]};
+
         setActiveFileID(fileID)
         !openedFileIDs.includes(fileID) && setOpenedFileIDs([...openedFileIDs, fileID])
+        console.log('触发')
         if (!newFile.isLoaded) {
-            fileHelper.readFile(newFile.path).then((data) => {
-                newFile.body = data;
-                newFile.isLoaded = true;
-                setFiles({...files, [newFile.id]: newFile})
-                setUnsavedFileIDs(unsavedFileIDs.filter(id => id !== fileID))
-            }).catch(err => {
-                console.error('文件读取失败', err)
-            })
+            console.log('触发')
+            if (getAutoSync()) {
+                ipcRenderer.send('download-file',{key:`${newFile.title}.md`,path:newFile.path,id:newFile.id})
+            }else{
+                fileHelper.readFile(newFile.path).then((data) => {
+                    newFile.body = data;
+                    newFile.isLoaded = true;
+                    setFiles({...files, [newFile.id]: newFile})
+                    setUnsavedFileIDs(unsavedFileIDs.filter(id => id !== fileID))
+                }).catch(err => {
+                    console.error('文件读取失败', err)
+                })
+            }
         }
     }
     const tabClick = (fileID) => {
@@ -246,21 +261,55 @@ function App() {
         })
     }
 
+    const activeFileUploaded=()=>{
+        const {id}=activeFile;
+        const modifiedFile={...files[id],isSynced:true,updatedAt:new Date().getTime()};
+        const newFiles={...files,[id]:modifiedFile}
+        setFiles(newFiles)
+        saveFilesToStore(newFiles)
+    }
+    const activeFileDownloaded=(event,message)=>{
+        const currentFile =files[message.id];
+        const {id,path}=currentFile;
+        fileHelper.readFile(path).then(value=>{
+            let newFile;
+            if (message.status==='download-success'){
+                newFile={...files[id],body:value,isLoaded:true,isSynced:true,updatedAt: new Date().getTime()}
+            }else{
+                newFile={...files[id],body:value,isLoaded:true}
+            }
+            const newFiles={...files,[message.id]:newFile}
+            setFiles(newFiles)
+            saveFilesToStore(newFiles)
+
+
+        })
+
+
+
+
+    }
     //应用菜单事件
     let objListener = {
         'create-new-file': addNewFile,
-        'save-edit-file': onSaveCurrentFile,
+        'save-edit-file': saveCurrentFile,
         'search-file': fileSearch,
         'import-file': importFiles,
-
+        'active-file-uploaded':activeFileUploaded,
+        'file-downloaded':activeFileDownloaded,
+        'loading-status':(message,status)=>{setLoading(status)}
     }
     useIpcRenderer(objListener)
 
 
     return (
         <div className="App container-fluid px-0" style={
-            {'minWidth': '1200px'}
+            {'minWidth': '1000px'}
         }>
+            {
+                isLoading &&
+                <Loading/>
+            }
             <div className="row no-gutters">
                 <div className="col-3 left-panel ">
                     <FileSearch
@@ -323,6 +372,11 @@ function App() {
                                 }
                             }
                         />
+
+                        {activeFile.isSynced &&
+                        <span className='sync-status'>已同步，上次同步时间为{timeStampToString(activeFile.updatedAt)}</span>
+                        }
+
                     </>
                     }
 

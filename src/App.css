@@ -37,3 +37,16 @@ position: absolute;
 .left-panel .no-border{
     border-radius:0 ;
 }
+
+.CodeMirror-scroll {
+    height:600px !important;
+    min-height: 600px !important;
+}
+.sync-status{
+    font-size: 12px;
+    color: #959694;
+    position: absolute;
+    bottom: 12px;
+    left: 10px;
+}
+

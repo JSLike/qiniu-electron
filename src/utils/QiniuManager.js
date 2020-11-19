@@ -1,4 +1,6 @@
 const qiniu = require('qiniu');
+const fs = require('fs')
+const axios = require('axios');
 
 class QiniuManager {
     constructor(accessKey, secretKey, bucket) {
@@ -45,6 +47,7 @@ class QiniuManager {
         })
     }
 
+    //获取文件地址
     generateDownloadLink(key) {
         //已请求过，则使用请求到的数据，否则请求获取
         const domainPromise = this.publicBucketDomain ?
@@ -78,6 +81,7 @@ class QiniuManager {
         const resumeUploader = new qiniu.resume_up.ResumeUploader(this.config);
         const putExtra = new qiniu.resume_up.PutExtra();
         //合并额外参数
+
         if (putExtraObj && Object.prototype.toString.call(putExtraObj) === '[object Object]') {
             Object.keys(putExtraObj).forEach(item => {
                 putExtra[item] = putExtraObj[item]
@@ -96,6 +100,50 @@ class QiniuManager {
         })
 
     }
+
+    //下载文件
+    downloadFile(key, downloadPath) {
+        //step 1 get the download link
+        //step 2 send the request to download link , return a readable stream
+        //step 3 create a writable stream and pipe to it
+        //step 4 return a promise based result
+        return this.generateDownloadLink(key).then(link => {
+            console.log('downlink---', link)
+            const timeStrap = new Date().getTime();
+            const url = `${link}?timeStrap=${timeStrap}`
+            return axios({
+                url,
+                method: 'GET',
+                responseType: 'stream',//以流式数据返回
+                headers: {'Cache-Control': 'no-cache'}//不缓存
+            }).then(response => {
+                //创建可写流，指定本地储存路径
+                const writer = fs.createWriteStream(downloadPath);
+                response.data.pipe(writer)
+
+                // console.log('downloadPath------', downloadPath)
+                // console.log('response------', response.data)
+                // console.log('writer------', writer)
+
+                return new Promise((resolve, reject) => {
+                    writer.on('finish', resolve)
+                    writer.on('error', reject)
+                })
+
+            }).catch(err => {
+                return Promise.reject({err: err.response})
+            })
+        })
+    }
+
+
+    getStat(key) {
+        return new Promise((resolve, reject) => {
+            this.bucketManager.stat(this.bucket, key, this._handleCallBack(resolve,reject));
+        })
+    }
+
+
 }
 
 module.exports = QiniuManager

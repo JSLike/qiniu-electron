@@ -15,6 +15,7 @@
     "@testing-library/jest-dom": "^5.11.4",
     "@testing-library/react": "^11.1.0",
     "@testing-library/user-event": "^12.1.10",
+    "axios": "^0.21.0",
     "bootstrap": "^4.5.3",
     "classnames": "^2.2.6",
     "concurrently": "^5.3.0",
@@ -37,7 +38,8 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "ele": "electron .",
-    "dev": "concurrently \"wait-on http://localhost:9000 && yarn ele \" \" cross-env BROWSER=none PORT=9000 yarn start \"  "
+    "dev": "concurrently \"wait-on http://localhost:9000 && yarn ele \" \" cross-env BROWSER=none PORT=9000 yarn start \"  ",
+    "onlyEle": "nodemon  --watch main.js --watch src/menuTemplate.js --exec \"electron .\""
   },
   "eslintConfig": {
     "extends": [
