@@ -281,14 +281,24 @@ function App() {
             const newFiles={...files,[message.id]:newFile}
             setFiles(newFiles)
             saveFilesToStore(newFiles)
-
-
         })
-
-
-
-
     }
+
+    const filesUploaded = ()=>{
+        const newFiles =objToArr(files).reduce((result,file)=>{
+            const currentTime = new Date().getTime();
+            result[file.id]={
+                ...files[file.id],
+                isSynced:true,
+                updatedAt:currentTime
+            }
+            return result
+        },{})
+        setFiles(newFiles);
+        saveFilesToStore(newFiles)
+    }
+
+
     //应用菜单事件
     let objListener = {
         'create-new-file': addNewFile,
@@ -297,6 +307,7 @@ function App() {
         'import-file': importFiles,
         'active-file-uploaded':activeFileUploaded,
         'file-downloaded':activeFileDownloaded,
+        'files-uploaded':filesUploaded,
         'loading-status':(message,status)=>{setLoading(status)}
     }
     useIpcRenderer(objListener)

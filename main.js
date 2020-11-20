@@ -15,11 +15,10 @@ const createManger = () => {
     const bucketName = settingsStore.get('bucketName');
     return new QiNiuManager(accessKey, secretKey, bucketName);
 }
-
+let productionUrl=`file://${path.join(__dirname,'./index.html')}`;
 
 app.on('ready', () => {
-    const urlLocation = isDev ? 'http://localhost:9000' : 'productionUrl';
-
+    const urlLocation = isDev ? 'http://localhost:9000' : productionUrl;
     const mainWindowConfig = {
         width: 1200,
         height: 800,
@@ -51,7 +50,29 @@ app.on('ready', () => {
         })
     })
     ipcMain.on('upload-all-to-qiniu',()=>{
-        mainWindow.webContents.send('loading-status',true)
+        mainWindow.webContents.send('loading-status',true);
+        const manager = createManger();
+        const filesObj = fileStore.get('files') || {};
+        const uploadPromiseArr = Object.keys(filesObj).map(key =>{
+            const file = filesObj[key];
+            return manager.uploadFile(`${file.title}.md`,file.path);
+        })
+        Promise.all(uploadPromiseArr).then(result=>{
+            console.log(result)
+            dialog.showMessageBoxSync({
+                type:'info',
+                title:`成功上传了${result.length}个文件`,
+                message:`成功上传了${result.length}个文件`
+            })
+
+            mainWindow.webContents.send('files-uploaded')
+        }).catch(err=>{
+            dialog.showErrorBox('同步失败','请检查参数')
+        }).finally(()=>{
+            mainWindow.webContents.send('loading-status',false);
+        })
+
+
         setTimeout(()=>{
             mainWindow.webContents.send('loading-status',false)
         },2000)
