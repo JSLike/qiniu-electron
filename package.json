@@ -5,16 +5,17 @@
     "name": "LIKE",
     "email": "1622698496@qq.com"
   },
-  "repository":{
-      "type" : "git",
-      "url" : "https://github.com/JSLike/qiniu-electron"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JSLike/qiniu-electron"
   },
   "version": "0.1.1",
   "main": "main.js",
-  "private": true,
+  "private":true,
   "dependencies": {
     "bootstrap": "^4.5.3",
-    "electron-store": "^6.0.1"
+    "electron-store": "^6.0.1",
+    "electron-updater": "^4.3.5"
   },
   "devDependencies": {
     "@fortawesome/fontawesome-svg-core": "^1.2.32",
@@ -57,8 +58,8 @@
     "prepack": " npm run build && npm run buildMain",
     "predist": "npm run build && npm run buildMain",
     "distMac": "electron-builder",
-    "release": "cross-env GH_TOKEN=40a6842ecf815fc909e82e9d8a199bda electron-builder",
-    "prerelease": "npm run build && npm run buildMain"
+    "release": "cross-env GH_TOKEN=9fe8dd80097dca404014024c2dccc2f67cdff465 electron-builder",
+    "prerelease": "npm run build && npm run "
   },
   "homepage": "./",
   "build": {
@@ -71,8 +72,9 @@
     },
     "publish": {
       "provider": "github",
+      "private": true,
       "protocol": "https://github.com/JSLike/qiniu-electron.git",
-      "token": "1df91ba0bdaef643e4bf8a6705bd276db7d02ae4"
+      "token": "9fe8dd80097dca404014024c2dccc2f67cdff465"
     },
     "files": [
       "build/**/*",
